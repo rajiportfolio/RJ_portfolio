@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 
 const STORAGE_KEY = "kids-portfolio-v2";
 const SETTINGS_KEY = "kids-portfolio-settings";
+const ADMIN_KEY = "kids-portfolio-admin";
+const ADMIN_PASSWORD = "raina2026"; // 👈 원하는 비밀번호로 바꾸세요
 
 const DEFAULT_SETTINGS = {
   bgColor: "#ffffff",
@@ -99,7 +101,7 @@ function WorkCard({ work, theme, onClick }) {
 }
 
 // ── Work Detail Modal ──────────────────────────────────────────
-function Modal({ work, theme, onClose, onDelete }) {
+function Modal({ work, theme, onClose, onDelete, isAdmin }) {
   if (!work) return null;
   return (
     <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:20, backdropFilter:"blur(4px)" }}>
@@ -122,13 +124,15 @@ function Modal({ work, theme, onClose, onDelete }) {
           {work.description && (
             <p style={{ fontSize:14, color:"#555", lineHeight:1.7, margin:0, borderTop:"1px solid #f0f0f0", paddingTop:16 }}>{work.description}</p>
           )}
-          <div style={{ marginTop:20, display:"flex", justifyContent:"flex-end" }}>
-            <button onClick={()=>{onDelete(work.id);onClose();}} style={{ background:"none", color:"#ccc", border:"1px solid #eee", borderRadius:8, padding:"8px 16px", cursor:"pointer", fontSize:12, fontWeight:500, transition:"all 0.15s" }}
-              onMouseEnter={e=>{e.currentTarget.style.color="#e55";e.currentTarget.style.borderColor="#e55";}}
-              onMouseLeave={e=>{e.currentTarget.style.color="#ccc";e.currentTarget.style.borderColor="#eee";}}>
-              Delete
-            </button>
-          </div>
+          {isAdmin && (
+            <div style={{ marginTop:20, display:"flex", justifyContent:"flex-end" }}>
+              <button onClick={()=>{onDelete(work.id);onClose();}} style={{ background:"none", color:"#ccc", border:"1px solid #eee", borderRadius:8, padding:"8px 16px", cursor:"pointer", fontSize:12, fontWeight:500, transition:"all 0.15s" }}
+                onMouseEnter={e=>{e.currentTarget.style.color="#e55";e.currentTarget.style.borderColor="#e55";}}
+                onMouseLeave={e=>{e.currentTarget.style.color="#ccc";e.currentTarget.style.borderColor="#eee";}}>
+                Delete
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -230,7 +234,7 @@ function AddForm({ childKey, theme, onAdd, onClose, initialDate }) {
 }
 
 // ── Calendar ───────────────────────────────────────────────────
-function CalendarView({ works, themes, onClose, onAdd }) {
+function CalendarView({ works, themes, onClose, onAdd, isAdmin }) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
@@ -308,17 +312,19 @@ function CalendarView({ works, themes, onClose, onAdd }) {
               <div style={{ fontSize:13, fontWeight:600, color:"#111" }}>
                 {MONTHS[month]} {selectedDate} · <span style={{ color:"#aaa", fontWeight:400 }}>{selectedWorks.length} work{selectedWorks.length!==1?"s":""}</span>
               </div>
-              <div style={{ display:"flex", gap:6 }}>
-                <button onClick={()=>setAddChild("raina")} style={{ background:themes.raina.light, color:themes.raina.color, border:`1px solid ${themes.raina.border}`, borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:600, cursor:"pointer" }}>
-                  Raina
-                </button>
-                <button onClick={()=>setAddChild("jaina")} style={{ background:themes.jaina.light, color:themes.jaina.color, border:`1px solid ${themes.jaina.border}`, borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:600, cursor:"pointer" }}>
-                  Jaina
-                </button>
-              </div>
+              {isAdmin && (
+                <div style={{ display:"flex", gap:6 }}>
+                  <button onClick={()=>setAddChild("raina")} style={{ background:themes.raina.light, color:themes.raina.color, border:`1px solid ${themes.raina.border}`, borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                    Raina
+                  </button>
+                  <button onClick={()=>setAddChild("jaina")} style={{ background:themes.jaina.light, color:themes.jaina.color, border:`1px solid ${themes.jaina.border}`, borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                    Jaina
+                  </button>
+                </div>
+              )}
             </div>
             {selectedWorks.length===0
-              ? <div style={{ textAlign:"center", padding:"32px 0", color:"#ddd", fontSize:13 }}>No works — add one above</div>
+              ? <div style={{ textAlign:"center", padding:"32px 0", color:"#ddd", fontSize:13 }}>{isAdmin ? "No works — add one above" : "No works on this day"}</div>
               : <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:10 }}>
                   {selectedWorks.map(w=><WorkCard key={w.id} work={w} theme={getTheme(w)} onClick={setSelectedWork}/>)}
                 </div>
@@ -329,7 +335,7 @@ function CalendarView({ works, themes, onClose, onAdd }) {
       </div>
 
       {addChild && <AddForm childKey={addChild} theme={addChild==="raina"?themes.raina:themes.jaina} initialDate={selectedKey} onAdd={w=>{onAdd(w);setAddChild(null);}} onClose={()=>setAddChild(null)}/>}
-      {selectedWork && <Modal work={selectedWork} theme={getTheme(selectedWork)} onClose={()=>setSelectedWork(null)} onDelete={()=>{}}/>}
+      {selectedWork && <Modal work={selectedWork} theme={getTheme(selectedWork)} onClose={()=>setSelectedWork(null)} onDelete={()=>{}} isAdmin={isAdmin}/>}
     </div>
   );
 }
@@ -396,7 +402,7 @@ function SettingsPanel({ settings, onSave, onClose }) {
 }
 
 // ── Board (grid only) ─────────────────────────────────────────
-function Board({ childKey, theme, works, filter, search, onDelete }) {
+function Board({ childKey, theme, works, filter, search, onDelete, isAdmin }) {
   const [selectedWork, setSelectedWork] = useState(null);
 
   const filtered = works.filter(w => {
@@ -415,7 +421,45 @@ function Board({ childKey, theme, works, filter, search, onDelete }) {
             {filtered.map(work=><WorkCard key={work.id} work={work} theme={theme} onClick={setSelectedWork}/>)}
           </div>
       }
-      {selectedWork && <Modal work={selectedWork} theme={theme} onClose={()=>setSelectedWork(null)} onDelete={onDelete}/>}
+      {selectedWork && <Modal work={selectedWork} theme={theme} onClose={()=>setSelectedWork(null)} onDelete={onDelete} isAdmin={isAdmin}/>}
+    </div>
+  );
+}
+
+// ── Admin Login ────────────────────────────────────────────────
+function LoginModal({ onSuccess, onClose }) {
+  const [pw, setPw] = useState("");
+  const [error, setError] = useState(false);
+
+  const handleSubmit = () => {
+    if (pw === ADMIN_PASSWORD) {
+      onSuccess();
+    } else {
+      setError(true);
+      setPw("");
+    }
+  };
+
+  return (
+    <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:3000, padding:20, backdropFilter:"blur(4px)" }}>
+      <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, maxWidth:340, width:"100%", boxShadow:"0 32px 80px rgba(0,0,0,0.25)", padding:"28px 26px" }}>
+        <div style={{ fontWeight:700, fontSize:16, color:"#111", marginBottom:6 }}>Admin Login</div>
+        <div style={{ fontSize:12, color:"#aaa", marginBottom:18 }}>Enter the password to add or delete works.</div>
+        <input
+          type="password"
+          value={pw}
+          autoFocus
+          onChange={e=>{ setPw(e.target.value); setError(false); }}
+          onKeyDown={e=>{ if(e.key==="Enter") handleSubmit(); }}
+          placeholder="Password"
+          style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:`1.5px solid ${error?"#ef4444":"#e8e8e8"}`, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit", marginBottom: error ? 6 : 18 }}
+        />
+        {error && <div style={{ fontSize:12, color:"#ef4444", marginBottom:12 }}>Incorrect password</div>}
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={onClose} style={{ flex:1, padding:"10px", borderRadius:8, border:"1px solid #eee", background:"#fff", color:"#aaa", fontWeight:500, cursor:"pointer", fontSize:13, fontFamily:"inherit" }}>Cancel</button>
+          <button onClick={handleSubmit} style={{ flex:2, padding:"10px", borderRadius:8, border:"none", background:"#111", color:"#fff", fontWeight:600, cursor:"pointer", fontSize:13, fontFamily:"inherit" }}>Unlock</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -432,10 +476,13 @@ export default function App() {
   const [searches, setSearches] = useState({ raina: "", jaina: "" });
   const [showAdd, setShowAdd] = useState(null); // "raina" | "jaina" | null
   const [filterOpen, setFilterOpen] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
 
   useEffect(()=>{
     try{const v=localStorage.getItem(STORAGE_KEY);if(v)setWorks(JSON.parse(v));}catch{}
     try{const v=localStorage.getItem(SETTINGS_KEY);if(v)setSettings(JSON.parse(v));}catch{}
+    try{const v=localStorage.getItem(ADMIN_KEY);if(v==="true")setIsAdmin(true);}catch{}
     setLoaded(true);
   },[]);
 
@@ -443,6 +490,8 @@ export default function App() {
   const saveSettings = (u)=>{try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(u));}catch{}};
   const handleAdd = (work)=>{ const u=[work,...works]; setWorks(u); saveWorks(u); };
   const handleDelete = (id)=>{ const u=works.filter(w=>w.id!==id); setWorks(u); saveWorks(u); };
+  const handleLoginSuccess = () => { setIsAdmin(true); try{localStorage.setItem(ADMIN_KEY,"true");}catch{}; setShowLogin(false); };
+  const handleLogout = () => { setIsAdmin(false); try{localStorage.removeItem(ADMIN_KEY);}catch{}; };
 
   const rainaWorks = works.filter(w=>w.child==="raina");
   const jainaWorks = works.filter(w=>w.child==="jaina");
@@ -469,11 +518,23 @@ export default function App() {
             onMouseLeave={e=>{e.currentTarget.style.borderColor="#eee";e.currentTarget.style.color="#888";}}>
             Calendar
           </button>
-          <button onClick={()=>setShowSettings(true)} style={{ background:"none", border:"1px solid #eee", borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:500, color:"#888", cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s" }}
-            onMouseEnter={e=>{e.currentTarget.style.borderColor="#111";e.currentTarget.style.color="#111";}}
-            onMouseLeave={e=>{e.currentTarget.style.borderColor="#eee";e.currentTarget.style.color="#888";}}>
-            Settings
-          </button>
+          {isAdmin && (
+            <button onClick={()=>setShowSettings(true)} style={{ background:"none", border:"1px solid #eee", borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:500, color:"#888", cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s" }}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor="#111";e.currentTarget.style.color="#111";}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor="#eee";e.currentTarget.style.color="#888";}}>
+              Settings
+            </button>
+          )}
+          {isAdmin
+            ? <button onClick={handleLogout} style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:600, color:"#16a34a", cursor:"pointer", fontFamily:"inherit" }}>
+                ✓ Admin
+              </button>
+            : <button onClick={()=>setShowLogin(true)} style={{ background:"none", border:"1px solid #eee", borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:500, color:"#888", cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s" }}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor="#111";e.currentTarget.style.color="#111";}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor="#eee";e.currentTarget.style.color="#888";}}>
+                Admin Login
+              </button>
+          }
         </div>
       </header>
 
@@ -507,11 +568,13 @@ export default function App() {
                   <div style={{ padding:"8px 14px 0", display:"flex", flexDirection:"column", gap:10 }}>
                     {/* Add button + Search in one row */}
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <button onClick={()=>setShowAdd(key)} style={{ width:34, height:34, borderRadius:8, border:`1px solid ${theme.color}`, background:theme.light, color:theme.color, fontWeight:700, fontSize:16, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.15s" }}
-                        onMouseEnter={e=>{e.currentTarget.style.background=theme.gradient;e.currentTarget.style.color="#fff";e.currentTarget.style.borderColor="transparent";}}
-                        onMouseLeave={e=>{e.currentTarget.style.background=theme.light;e.currentTarget.style.color=theme.color;e.currentTarget.style.borderColor=theme.color;}}>
-                        +
-                      </button>
+                      {isAdmin && (
+                        <button onClick={()=>setShowAdd(key)} style={{ width:34, height:34, borderRadius:8, border:`1px solid ${theme.color}`, background:theme.light, color:theme.color, fontWeight:700, fontSize:16, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.15s" }}
+                          onMouseEnter={e=>{e.currentTarget.style.background=theme.gradient;e.currentTarget.style.color="#fff";e.currentTarget.style.borderColor="transparent";}}
+                          onMouseLeave={e=>{e.currentTarget.style.background=theme.light;e.currentTarget.style.color=theme.color;e.currentTarget.style.borderColor=theme.color;}}>
+                          +
+                        </button>
+                      )}
                       <input
                         value={searches[key]}
                         onChange={e=>setSearches(p=>({...p,[key]:e.target.value}))}
@@ -569,14 +632,16 @@ export default function App() {
                 filter={filters[activeChild]}
                 search={searches[activeChild]}
                 onDelete={handleDelete}
+                isAdmin={isAdmin}
               />
           }
         </main>
       </div>
 
-      {showAdd && <AddForm childKey={showAdd} theme={showAdd==="raina"?rainaTheme:jainaTheme} onAdd={w=>{handleAdd(w);setShowAdd(null);}} onClose={()=>setShowAdd(null)}/>}
-      {showCalendar && <CalendarView works={works} themes={{raina:rainaTheme,jaina:jainaTheme}} onClose={()=>setShowCalendar(false)} onAdd={handleAdd}/>}
+      {showAdd && isAdmin && <AddForm childKey={showAdd} theme={showAdd==="raina"?rainaTheme:jainaTheme} onAdd={w=>{handleAdd(w);setShowAdd(null);}} onClose={()=>setShowAdd(null)}/>}
+      {showCalendar && <CalendarView works={works} themes={{raina:rainaTheme,jaina:jainaTheme}} onClose={()=>setShowCalendar(false)} onAdd={handleAdd} isAdmin={isAdmin}/>}
       {showSettings && <SettingsPanel settings={settings} onSave={s=>{setSettings(s);saveSettings(s);}} onClose={()=>setShowSettings(false)}/>}
+      {showLogin && <LoginModal onSuccess={handleLoginSuccess} onClose={()=>setShowLogin(false)}/>}
     </div>
   );
 }
