@@ -54,48 +54,55 @@ function TagPill({ tag }) {
 function WorkCard({ work, theme, onClick }) {
   const [hovered, setHovered] = useState(false);
   return (
-    <div
-      onClick={() => onClick(work)}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        cursor: "pointer", borderRadius: 12, overflow: "hidden",
-        aspectRatio: "3/4", position: "relative",
-        background: "#f5f5f5",
-        boxShadow: hovered ? "0 16px 40px rgba(0,0,0,0.15)" : "0 2px 8px rgba(0,0,0,0.06)",
-        transform: hovered ? "translateY(-3px)" : "translateY(0)",
-        transition: "all 0.25s ease",
-      }}
-    >
-      {work.imageUrl
-        ? <img src={work.imageUrl} alt={work.title} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block", transition:"transform 0.4s ease", transform: hovered ? "scale(1.04)" : "scale(1)" }}/>
-        : <div style={{ width:"100%", height:"100%", background:`linear-gradient(145deg, ${theme.light}, #f9f9f9)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, color: theme.color+"88" }}>✏️</div>
-      }
+    <div style={{ breakInside: "avoid", marginBottom: 12 }}>
+      <div
+        onClick={() => onClick(work)}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          cursor: "pointer", borderRadius: 12, overflow: "hidden",
+          position: "relative", display:"inline-block", width:"100%",
+          background: "#f5f5f5",
+          boxShadow: hovered ? "0 16px 40px rgba(0,0,0,0.15)" : "0 2px 8px rgba(0,0,0,0.06)",
+          transform: hovered ? "translateY(-3px)" : "translateY(0)",
+          transition: "all 0.25s ease",
+        }}
+      >
+        {work.imageUrl
+          ? <img src={work.imageUrl} alt={work.title} style={{ width:"100%", height:"auto", display:"block", transition:"transform 0.4s ease", transform: hovered ? "scale(1.04)" : "scale(1)" }}/>
+          : <div style={{ width:"100%", aspectRatio:"4/3", background:`linear-gradient(145deg, ${theme.light}, #f9f9f9)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, color: theme.color+"88" }}>✏️</div>
+        }
 
-      {/* Overlay */}
-      <div style={{
-        position:"absolute", inset:0,
-        background: `linear-gradient(to top, ${theme.color}ee 0%, ${theme.color}44 50%, transparent 100%)`,
-        opacity: hovered ? 1 : 0,
-        transition: "opacity 0.25s ease",
-        display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"16px 14px",
-      }}>
-        <div style={{ color:"#fff", fontWeight:700, fontSize:14, lineHeight:1.3, marginBottom:4 }}>{work.title}</div>
-        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-          <TagPill tag={work.tag}/>
-          <span style={{ color:"rgba(255,255,255,0.75)", fontSize:11, marginLeft:"auto" }}>{formatDate(work.date)}</span>
+        {/* Overlay */}
+        <div style={{
+          position:"absolute", inset:0,
+          background: `linear-gradient(to top, ${theme.color}ee 0%, ${theme.color}44 50%, transparent 100%)`,
+          opacity: hovered ? 1 : 0,
+          transition: "opacity 0.25s ease",
+          display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"16px 14px",
+        }}>
+          <div style={{ color:"#fff", fontWeight:700, fontSize:14, lineHeight:1.3, marginBottom:4 }}>{work.title}</div>
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+            <TagPill tag={work.tag}/>
+            <span style={{ color:"rgba(255,255,255,0.75)", fontSize:11, marginLeft:"auto" }}>{formatDate(work.date)}</span>
+          </div>
         </div>
+
+        {/* Always-visible tag dot */}
+        <div style={{
+          position:"absolute", top:10, right:10,
+          width:8, height:8, borderRadius:"50%",
+          background: TAG_COLORS[work.tag] || "#ccc",
+          opacity: hovered ? 0 : 1,
+          transition: "opacity 0.2s",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+        }}/>
       </div>
 
-      {/* Always-visible tag dot */}
-      <div style={{
-        position:"absolute", top:10, right:10,
-        width:8, height:8, borderRadius:"50%",
-        background: TAG_COLORS[work.tag] || "#ccc",
-        opacity: hovered ? 0 : 1,
-        transition: "opacity 0.2s",
-        boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
-      }}/>
+      {/* Caption — like a photo footnote */}
+      <div style={{ fontSize:11, color:"#aaa", marginTop:5, padding:"0 2px", lineHeight:1.3, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+        {work.title}
+      </div>
     </div>
   );
 }
@@ -145,20 +152,33 @@ function AddForm({ childKey, theme, onAdd, onClose, initialDate }) {
   const [title, setTitle] = useState("");
   const [tag, setTag] = useState("Photo");
   const [description, setDescription] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [previewUrl, setPreviewUrl] = useState("");
+  const [previews, setPreviews] = useState([]); // [{id, url}]
   const [workDate, setWorkDate] = useState(initialDate || todayStr);
   const fileRef = useRef();
 
   const handleFile = (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => { setImageUrl(ev.target.result); setPreviewUrl(ev.target.result); };
-    reader.readAsDataURL(file);
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setPreviews(prev => [...prev, { id: Math.random().toString(36).slice(2), url: ev.target.result }]);
+      };
+      reader.readAsDataURL(file);
+    });
   };
+  const removePreview = (id) => setPreviews(prev => prev.filter(p => p.id !== id));
+
   const handleSubmit = () => {
     if (!title.trim()) return;
-    onAdd({ id: Date.now().toString(), title: title.trim(), child: childKey, tag, description: description.trim(), imageUrl, date: new Date(workDate + "T12:00:00").toISOString() });
+    const dateIso = new Date(workDate + "T12:00:00").toISOString();
+    if (previews.length <= 1) {
+      onAdd({ id: Date.now().toString(), title: title.trim(), child: childKey, tag, description: description.trim(), imageUrl: previews[0]?.url || "", date: dateIso });
+    } else {
+      previews.forEach((p, i) => {
+        onAdd({ id: `${Date.now()}-${i}`, title: `${title.trim()} ${i+1}`, child: childKey, tag, description: description.trim(), imageUrl: p.url, date: dateIso });
+      });
+    }
     onClose();
   };
 
@@ -178,7 +198,9 @@ function AddForm({ childKey, theme, onAdd, onClose, initialDate }) {
 
           <div style={{ display:"grid", gap:14 }}>
             <div>
-              <label style={{ fontSize:11, fontWeight:600, color:"#999", letterSpacing:0.8, textTransform:"uppercase", display:"block", marginBottom:6 }}>Title *</label>
+              <label style={{ fontSize:11, fontWeight:600, color:"#999", letterSpacing:0.8, textTransform:"uppercase", display:"block", marginBottom:6 }}>
+                Title * {previews.length > 1 && <span style={{ color: theme.color, fontWeight:400, textTransform:"none" }}>— will be numbered 1–{previews.length}</span>}
+              </label>
               <input style={inp} value={title} onChange={e=>setTitle(e.target.value)} placeholder="e.g. Spring Flower Field"
                 onFocus={e=>e.target.style.borderColor=theme.color} onBlur={e=>e.target.style.borderColor="#e8e8e8"}/>
             </div>
@@ -205,15 +227,25 @@ function AddForm({ childKey, theme, onAdd, onClose, initialDate }) {
             </div>
 
             <div>
-              <label style={{ fontSize:11, fontWeight:600, color:"#999", letterSpacing:0.8, textTransform:"uppercase", display:"block", marginBottom:6 }}>Photo</label>
-              <div onClick={()=>fileRef.current.click()} style={{ border:"1.5px dashed #e0e0e0", borderRadius:10, padding:"20px", textAlign:"center", cursor:"pointer", background:"#fafafa", transition:"border 0.15s" }}
+              <label style={{ fontSize:11, fontWeight:600, color:"#999", letterSpacing:0.8, textTransform:"uppercase", display:"block", marginBottom:6 }}>
+                Photos {previews.length > 0 && <span style={{ color: theme.color, fontWeight:400, textTransform:"none" }}>— {previews.length} selected</span>}
+              </label>
+              <div onClick={()=>fileRef.current.click()} style={{ border:"1.5px dashed #e0e0e0", borderRadius:10, padding: previews.length ? "12px" : "20px", textAlign:"center", cursor:"pointer", background:"#fafafa", transition:"border 0.15s" }}
                 onMouseEnter={e=>e.currentTarget.style.borderColor=theme.color} onMouseLeave={e=>e.currentTarget.style.borderColor="#e0e0e0"}>
-                {previewUrl
-                  ? <img src={previewUrl} alt="preview" style={{ maxHeight:130, borderRadius:6, objectFit:"cover" }}/>
-                  : <div style={{ color:"#ccc", fontSize:13 }}>Click to upload</div>
+                {previews.length > 0
+                  ? <div style={{ display:"flex", flexWrap:"wrap", gap:8, justifyContent:"center" }}>
+                      {previews.map(p => (
+                        <div key={p.id} style={{ position:"relative" }} onClick={e=>e.stopPropagation()}>
+                          <img src={p.url} alt="preview" style={{ width:64, height:64, borderRadius:6, objectFit:"cover", display:"block" }}/>
+                          <button onClick={()=>removePreview(p.id)} style={{ position:"absolute", top:-6, right:-6, width:18, height:18, borderRadius:"50%", background:"#111", color:"#fff", border:"none", fontSize:10, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                        </div>
+                      ))}
+                      <div onClick={e=>{e.stopPropagation();fileRef.current.click();}} style={{ width:64, height:64, borderRadius:6, border:"1.5px dashed #ccc", display:"flex", alignItems:"center", justifyContent:"center", color:"#bbb", fontSize:20, cursor:"pointer" }}>+</div>
+                    </div>
+                  : <div style={{ color:"#ccc", fontSize:13 }}>Click to upload — select multiple photos at once</div>
                 }
               </div>
-              <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleFile}/>
+              <input ref={fileRef} type="file" accept="image/*" multiple style={{ display:"none" }} onChange={handleFile}/>
             </div>
 
             <div>
@@ -225,7 +257,9 @@ function AddForm({ childKey, theme, onAdd, onClose, initialDate }) {
 
           <div style={{ display:"flex", gap:8, marginTop:22 }}>
             <button onClick={onClose} style={{ flex:1, padding:"11px", borderRadius:8, border:"1px solid #e8e8e8", background:"#fff", color:"#aaa", fontWeight:500, cursor:"pointer", fontSize:13, fontFamily:"inherit" }}>Cancel</button>
-            <button onClick={handleSubmit} disabled={!title.trim()} style={{ flex:2, padding:"11px", borderRadius:8, border:"none", background:!title.trim()?"#f0f0f0":theme.gradient, color:!title.trim()?"#bbb":"#fff", fontWeight:600, cursor:!title.trim()?"not-allowed":"pointer", fontSize:13, fontFamily:"inherit", letterSpacing:0.2 }}>Save work</button>
+            <button onClick={handleSubmit} disabled={!title.trim()} style={{ flex:2, padding:"11px", borderRadius:8, border:"none", background:!title.trim()?"#f0f0f0":theme.gradient, color:!title.trim()?"#bbb":"#fff", fontWeight:600, cursor:!title.trim()?"not-allowed":"pointer", fontSize:13, fontFamily:"inherit", letterSpacing:0.2 }}>
+              {previews.length > 1 ? `Save ${previews.length} works` : "Save work"}
+            </button>
           </div>
         </div>
       </div>
@@ -325,7 +359,7 @@ function CalendarView({ works, themes, onClose, onAdd, isAdmin }) {
             </div>
             {selectedWorks.length===0
               ? <div style={{ textAlign:"center", padding:"32px 0", color:"#ddd", fontSize:13 }}>{isAdmin ? "No works — add one above" : "No works on this day"}</div>
-              : <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:10 }}>
+              : <div style={{ columns:"160px", columnGap:10 }}>
                   {selectedWorks.map(w=><WorkCard key={w.id} work={w} theme={getTheme(w)} onClick={setSelectedWork}/>)}
                 </div>
             }
@@ -417,7 +451,7 @@ function Board({ childKey, theme, works, filter, search, onDelete, isAdmin }) {
         ? <div style={{ textAlign:"center", padding:"60px 0", color:"#ddd" }}>
             <div style={{ fontSize:13 }}>{works.length===0?"No works yet":"No results"}</div>
           </div>
-        : <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:12 }}>
+        : <div style={{ columns:"180px", columnGap:12 }}>
             {filtered.map(work=><WorkCard key={work.id} work={work} theme={theme} onClick={setSelectedWork}/>)}
           </div>
       }
