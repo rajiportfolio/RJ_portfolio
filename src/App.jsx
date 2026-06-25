@@ -49,8 +49,8 @@ function compressImage(dataUrl, maxDimension = 1280, quality = 0.7) {
 
 const DEFAULT_SETTINGS = {
   bgColor: "#ffffff",
-  raina: { emoji: "", color: "#e8547a", gradient2: "#f472b6" },
-  jaina: { emoji: "", color: "#f59e0b", gradient2: "#fbbf24" },
+  raina: { emoji: "", color: "#d4262c", gradient2: "#e8474d" },
+  jaina: { emoji: "", color: "#f0d878", gradient2: "#f5e3a3" },
 };
 
 function hexToLight(hex) { return hex + "12"; }
@@ -740,10 +740,10 @@ export default function App() {
       {/* Top bar */}
       <header style={{ borderBottom:"1px solid #f0f0f0", padding:"0 32px", background:settings.bgColor, position:"sticky", top:0, zIndex:100 }}>
         <div style={{ maxWidth:1200, margin:"0 auto", display:"flex", alignItems:"center", height:56, gap:16 }}>
-          <div style={{ fontWeight:800, fontSize:16, color:"#111", letterSpacing:"-0.5px" }}>
-            <span>Raina</span>
+          <div style={{ fontWeight:800, fontSize:16, letterSpacing:"-0.5px" }}>
+            <span style={{ color: rainaTheme.color }}>Raina</span>
             <span style={{ color:"#ddd", margin:"0 6px", fontWeight:300 }}>&</span>
-            <span>Jaina</span>
+            <span style={{ color: jainaTheme.color }}>Jaina</span>
           </div>
           {visitorCount !== null && (
             <span style={{ fontSize:11, color:"#ccc", fontWeight:500, display:"flex", alignItems:"center", gap:4 }}>
@@ -791,12 +791,9 @@ export default function App() {
                 <div onClick={()=>setActiveChild(key)} style={{ padding:"12px 14px", borderRadius:10, cursor:"pointer", background: isActive ? theme.light : "transparent", transition:"all 0.2s" }}
                   onMouseEnter={e=>{ if(!isActive) e.currentTarget.style.background="#fafafa"; }}
                   onMouseLeave={e=>{ if(!isActive) e.currentTarget.style.background="transparent"; }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                    <div style={{ width:34, height:34, borderRadius:8, background:"#fff", border:"1.5px solid #111", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color: theme.color, transition:"all 0.2s" }}>{theme.name.slice(0,1)}</div>
-                    <div>
-                      <div style={{ fontWeight:700, fontSize:14, color:"#111", letterSpacing:"-0.2px" }}>{theme.name}</div>
-                      <div style={{ fontSize:11, color:"#ccc" }}>{ws.length} work{ws.length!==1?"s":""}</div>
-                    </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <div style={{ fontWeight:600, fontSize:14, color:"#111", letterSpacing:"-0.2px" }}>{theme.name}</div>
+                    <div style={{ fontSize:11, color:"#ccc" }}>{ws.length} work{ws.length!==1?"s":""}</div>
                     {isActive && <div style={{ marginLeft:"auto", width:5, height:5, borderRadius:"50%", background:theme.color }}/>}
                   </div>
                 </div>
@@ -807,9 +804,9 @@ export default function App() {
                     {/* Add button + Search in one row */}
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       {isAdmin && (
-                        <button onClick={()=>setShowAdd(key)} style={{ width:34, height:34, borderRadius:8, border:`1px solid ${theme.color}`, background:theme.light, color:theme.color, fontWeight:700, fontSize:16, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.15s" }}
-                          onMouseEnter={e=>{e.currentTarget.style.background=theme.gradient;e.currentTarget.style.color="#fff";e.currentTarget.style.borderColor="transparent";}}
-                          onMouseLeave={e=>{e.currentTarget.style.background=theme.light;e.currentTarget.style.color=theme.color;e.currentTarget.style.borderColor=theme.color;}}>
+                        <button onClick={()=>setShowAdd(key)} style={{ width:26, height:26, borderRadius:4, border:"none", background:theme.color, color: key==="jaina" ? "#3a2e00" : "#fff", fontWeight:700, fontSize:15, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, transition:"all 0.15s" }}
+                          onMouseEnter={e=>{e.currentTarget.style.opacity="0.85";}}
+                          onMouseLeave={e=>{e.currentTarget.style.opacity="1";}}>
                           +
                         </button>
                       )}
