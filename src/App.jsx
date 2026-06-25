@@ -1,9 +1,23 @@
 import { useState, useEffect, useRef } from "react";
+import { fetchWorks, saveWork, deleteWork, fetchSettings, saveSettings as saveSettingsToFirebase, incrementVisitorCount, adjustWorkLike } from "./firebase.js";
 
 const STORAGE_KEY = "kids-portfolio-v2";
 const SETTINGS_KEY = "kids-portfolio-settings";
 const ADMIN_KEY = "kids-portfolio-admin";
+const LIKED_KEY = "kids-portfolio-liked-works";
 const ADMIN_PASSWORD = "raina2026"; // 👈 원하는 비밀번호로 바꾸세요
+
+function getLikedWorkIds() {
+  try {
+    const raw = localStorage.getItem(LIKED_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+function saveLikedWorkIds(set) {
+  try { localStorage.setItem(LIKED_KEY, JSON.stringify([...set])); } catch {}
+}
 
 const DEFAULT_SETTINGS = {
   bgColor: "#ffffff",
@@ -51,8 +65,10 @@ function TagPill({ tag }) {
 }
 
 // ── Work Card ──────────────────────────────────────────────────
-function WorkCard({ work, theme, onClick }) {
+function WorkCard({ work, theme, onClick, onToggleLike, isLiked }) {
   const [hovered, setHovered] = useState(false);
+  const likeCount = work.likeCount || 0;
+
   return (
     <div style={{ breakInside: "avoid", marginBottom: 12 }}>
       <div
@@ -97,32 +113,71 @@ function WorkCard({ work, theme, onClick }) {
           transition: "opacity 0.2s",
           boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
         }}/>
+
+        {/* Heart like button */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleLike(work); }}
+          style={{
+            position:"absolute", bottom:8, right:8,
+            width:28, height:28, borderRadius:"50%",
+            border:"none", cursor:"pointer",
+            background: "rgba(255,255,255,0.9)",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            fontSize:14, boxShadow:"0 1px 6px rgba(0,0,0,0.2)",
+            transition:"transform 0.15s",
+          }}
+          onMouseDown={e=>e.currentTarget.style.transform="scale(0.85)"}
+          onMouseUp={e=>e.currentTarget.style.transform="scale(1)"}
+        >
+          {isLiked ? "❤️" : "🤍"}
+        </button>
       </div>
 
       {/* Caption — like a photo footnote */}
-      <div style={{ fontSize:11, color:"#aaa", marginTop:5, padding:"0 2px", lineHeight:1.3, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-        {work.title}
+      <div style={{ fontSize:11, color:"#aaa", marginTop:5, padding:"0 2px", lineHeight:1.3, display:"flex", justifyContent:"space-between", gap:6 }}>
+        <span style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{work.title}</span>
+        {likeCount > 0 && <span style={{ flexShrink:0, color: isLiked ? theme.color : "#ccc" }}>♥ {likeCount}</span>}
       </div>
     </div>
   );
 }
 
 // ── Work Detail Modal ──────────────────────────────────────────
-function Modal({ work, theme, onClose, onDelete, isAdmin }) {
+function Modal({ work, theme, onClose, onDelete, isAdmin, onToggleLike, isLiked }) {
   if (!work) return null;
+  const likeCount = work.likeCount || 0;
   return (
     <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:20, backdropFilter:"blur(4px)" }}>
       <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, maxWidth:540, width:"100%", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 32px 80px rgba(0,0,0,0.25)" }}>
-        {work.imageUrl
-          ? <img src={work.imageUrl} alt={work.title} style={{ width:"100%", borderRadius:"16px 16px 0 0", maxHeight:340, objectFit:"cover", display:"block" }}/>
-          : <div style={{ height:120, background:`linear-gradient(135deg, ${theme.light}, #f9f9f9)`, borderRadius:"16px 16px 0 0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>✏️</div>
-        }
+        <div style={{ position:"relative" }}>
+          {work.imageUrl
+            ? <img src={work.imageUrl} alt={work.title} style={{ width:"100%", borderRadius:"16px 16px 0 0", maxHeight:340, objectFit:"cover", display:"block" }}/>
+            : <div style={{ height:120, background:`linear-gradient(135deg, ${theme.light}, #f9f9f9)`, borderRadius:"16px 16px 0 0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>✏️</div>
+          }
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleLike(work); }}
+            style={{
+              position:"absolute", bottom:12, right:12,
+              width:42, height:42, borderRadius:"50%",
+              border:"none", cursor:"pointer",
+              background: "rgba(255,255,255,0.92)",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:20, boxShadow:"0 2px 10px rgba(0,0,0,0.25)",
+              transition:"transform 0.15s",
+            }}
+            onMouseDown={e=>e.currentTarget.style.transform="scale(0.85)"}
+            onMouseUp={e=>e.currentTarget.style.transform="scale(1)"}
+          >
+            {isLiked ? "❤️" : "🤍"}
+          </button>
+        </div>
         <div style={{ padding:"24px 28px 28px" }}>
           <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12, marginBottom:16 }}>
             <div>
               <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
                 <TagPill tag={work.tag}/>
                 <span style={{ fontSize:12, color:"#aaa" }}>{formatDate(work.date)}</span>
+                {likeCount > 0 && <span style={{ fontSize:12, color: theme.color, fontWeight:600 }}>♥ {likeCount}</span>}
               </div>
               <div style={{ fontWeight:700, fontSize:22, color:"#111", lineHeight:1.2, letterSpacing:"-0.3px" }}>{work.title}</div>
             </div>
@@ -268,13 +323,14 @@ function AddForm({ childKey, theme, onAdd, onClose, initialDate }) {
 }
 
 // ── Calendar ───────────────────────────────────────────────────
-function CalendarView({ works, themes, onClose, onAdd, isAdmin }) {
+function CalendarView({ works, themes, onClose, onAdd, isAdmin, onToggleLike, likedIds }) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [selectedDate, setSelectedDate] = useState(null);
-  const [selectedWork, setSelectedWork] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
   const [addChild, setAddChild] = useState(null);
+  const selectedWork = works.find(w => w.id === selectedId) || null;
 
   const worksByDate = {};
   works.forEach(w => {
@@ -360,7 +416,7 @@ function CalendarView({ works, themes, onClose, onAdd, isAdmin }) {
             {selectedWorks.length===0
               ? <div style={{ textAlign:"center", padding:"32px 0", color:"#ddd", fontSize:13 }}>{isAdmin ? "No works — add one above" : "No works on this day"}</div>
               : <div style={{ columns:"160px", columnGap:10 }}>
-                  {selectedWorks.map(w=><WorkCard key={w.id} work={w} theme={getTheme(w)} onClick={setSelectedWork}/>)}
+                  {selectedWorks.map(w=><WorkCard key={w.id} work={w} theme={getTheme(w)} onClick={wk=>setSelectedId(wk.id)} onToggleLike={onToggleLike} isLiked={likedIds.has(w.id)}/>)}
                 </div>
             }
           </div>
@@ -369,7 +425,7 @@ function CalendarView({ works, themes, onClose, onAdd, isAdmin }) {
       </div>
 
       {addChild && <AddForm childKey={addChild} theme={addChild==="raina"?themes.raina:themes.jaina} initialDate={selectedKey} onAdd={w=>{onAdd(w);setAddChild(null);}} onClose={()=>setAddChild(null)}/>}
-      {selectedWork && <Modal work={selectedWork} theme={getTheme(selectedWork)} onClose={()=>setSelectedWork(null)} onDelete={()=>{}} isAdmin={isAdmin}/>}
+      {selectedWork && <Modal work={selectedWork} theme={getTheme(selectedWork)} onClose={()=>setSelectedId(null)} onDelete={()=>{}} isAdmin={isAdmin} onToggleLike={onToggleLike} isLiked={likedIds.has(selectedWork.id)}/>}
     </div>
   );
 }
@@ -436,8 +492,9 @@ function SettingsPanel({ settings, onSave, onClose }) {
 }
 
 // ── Board (grid only) ─────────────────────────────────────────
-function Board({ childKey, theme, works, filter, search, onDelete, isAdmin }) {
-  const [selectedWork, setSelectedWork] = useState(null);
+function Board({ childKey, theme, works, filter, search, onDelete, isAdmin, onToggleLike, likedIds }) {
+  const [selectedId, setSelectedId] = useState(null);
+  const selectedWork = works.find(w => w.id === selectedId) || null;
 
   const filtered = works.filter(w => {
     const matchTag = filter==="All"||w.tag===filter;
@@ -452,10 +509,10 @@ function Board({ childKey, theme, works, filter, search, onDelete, isAdmin }) {
             <div style={{ fontSize:13 }}>{works.length===0?"No works yet":"No results"}</div>
           </div>
         : <div style={{ columns:"180px", columnGap:12 }}>
-            {filtered.map(work=><WorkCard key={work.id} work={work} theme={theme} onClick={setSelectedWork}/>)}
+            {filtered.map(work=><WorkCard key={work.id} work={work} theme={theme} onClick={w=>setSelectedId(w.id)} onToggleLike={onToggleLike} isLiked={likedIds.has(work.id)}/>)}
           </div>
       }
-      {selectedWork && <Modal work={selectedWork} theme={theme} onClose={()=>setSelectedWork(null)} onDelete={onDelete} isAdmin={isAdmin}/>}
+      {selectedWork && <Modal work={selectedWork} theme={theme} onClose={()=>setSelectedId(null)} onDelete={onDelete} isAdmin={isAdmin} onToggleLike={onToggleLike} isLiked={likedIds.has(selectedWork.id)}/>}
     </div>
   );
 }
@@ -512,20 +569,65 @@ export default function App() {
   const [filterOpen, setFilterOpen] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [visitorCount, setVisitorCount] = useState(null);
+  const [likedIds, setLikedIds] = useState(() => getLikedWorkIds());
 
   useEffect(()=>{
-    try{const v=localStorage.getItem(STORAGE_KEY);if(v)setWorks(JSON.parse(v));}catch{}
-    try{const v=localStorage.getItem(SETTINGS_KEY);if(v)setSettings(JSON.parse(v));}catch{}
-    try{const v=localStorage.getItem(ADMIN_KEY);if(v==="true")setIsAdmin(true);}catch{}
-    setLoaded(true);
+    (async () => {
+      try {
+        const [remoteWorks, remoteSettings] = await Promise.all([fetchWorks(), fetchSettings()]);
+        // Sort newest first, same as before
+        setWorks(remoteWorks.sort((a,b)=> new Date(b.date) - new Date(a.date)));
+        if (remoteSettings) setSettings(remoteSettings);
+      } catch (e) {
+        console.error("Failed to load from Firebase:", e);
+      }
+      try{const v=localStorage.getItem(ADMIN_KEY);if(v==="true")setIsAdmin(true);}catch{}
+      setLoaded(true);
+      // Count this visit (increments once per page load)
+      try {
+        const count = await incrementVisitorCount();
+        setVisitorCount(count);
+      } catch (e) {
+        console.error("Failed to count visit:", e);
+      }
+    })();
   },[]);
 
-  const saveWorks = (u)=>{try{localStorage.setItem(STORAGE_KEY,JSON.stringify(u));}catch{}};
-  const saveSettings = (u)=>{try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(u));}catch{}};
-  const handleAdd = (work)=>{ const u=[work,...works]; setWorks(u); saveWorks(u); };
-  const handleDelete = (id)=>{ const u=works.filter(w=>w.id!==id); setWorks(u); saveWorks(u); };
+  const handleAdd = async (work) => {
+    setWorks(prev => [work, ...prev]);
+    try { await saveWork(work); } catch (e) { console.error("Failed to save work:", e); }
+  };
+  const handleDelete = async (id) => {
+    setWorks(prev => prev.filter(w => w.id !== id));
+    try { await deleteWork(id); } catch (e) { console.error("Failed to delete work:", e); }
+  };
+  const handleSaveSettings = async (s) => {
+    setSettings(s);
+    try { await saveSettingsToFirebase(s); } catch (e) { console.error("Failed to save settings:", e); }
+  };
   const handleLoginSuccess = () => { setIsAdmin(true); try{localStorage.setItem(ADMIN_KEY,"true");}catch{}; setShowLogin(false); };
   const handleLogout = () => { setIsAdmin(false); try{localStorage.removeItem(ADMIN_KEY);}catch{}; };
+
+  const handleToggleLike = async (work) => {
+    const alreadyLiked = likedIds.has(work.id);
+    const delta = alreadyLiked ? -1 : 1;
+
+    // Optimistic UI update
+    setLikedIds(prev => {
+      const next = new Set(prev);
+      if (alreadyLiked) next.delete(work.id); else next.add(work.id);
+      saveLikedWorkIds(next);
+      return next;
+    });
+    setWorks(prev => prev.map(w => w.id === work.id ? { ...w, likeCount: Math.max(0, (w.likeCount || 0) + delta) } : w));
+
+    try {
+      await adjustWorkLike(work.id, delta);
+    } catch (e) {
+      console.error("Failed to update like:", e);
+    }
+  };
 
   const rainaWorks = works.filter(w=>w.child==="raina");
   const jainaWorks = works.filter(w=>w.child==="jaina");
@@ -546,6 +648,11 @@ export default function App() {
             <span style={{ color:"#ddd", margin:"0 6px", fontWeight:300 }}>&</span>
             <span style={{ background:jainaTheme.gradient, WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>Jaina</span>
           </div>
+          {visitorCount !== null && (
+            <span style={{ fontSize:11, color:"#ccc", fontWeight:500, display:"flex", alignItems:"center", gap:4 }}>
+              <span style={{ fontSize:10 }}>👁</span>{visitorCount.toLocaleString()}
+            </span>
+          )}
           <div style={{ flex:1 }}/>
           <button onClick={()=>setShowCalendar(true)} style={{ background:"none", border:"1px solid #eee", borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:500, color:"#888", cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s" }}
             onMouseEnter={e=>{e.currentTarget.style.borderColor="#111";e.currentTarget.style.color="#111";}}
@@ -667,14 +774,16 @@ export default function App() {
                 search={searches[activeChild]}
                 onDelete={handleDelete}
                 isAdmin={isAdmin}
+                onToggleLike={handleToggleLike}
+                likedIds={likedIds}
               />
           }
         </main>
       </div>
 
       {showAdd && isAdmin && <AddForm childKey={showAdd} theme={showAdd==="raina"?rainaTheme:jainaTheme} onAdd={w=>{handleAdd(w);setShowAdd(null);}} onClose={()=>setShowAdd(null)}/>}
-      {showCalendar && <CalendarView works={works} themes={{raina:rainaTheme,jaina:jainaTheme}} onClose={()=>setShowCalendar(false)} onAdd={handleAdd} isAdmin={isAdmin}/>}
-      {showSettings && <SettingsPanel settings={settings} onSave={s=>{setSettings(s);saveSettings(s);}} onClose={()=>setShowSettings(false)}/>}
+      {showCalendar && <CalendarView works={works} themes={{raina:rainaTheme,jaina:jainaTheme}} onClose={()=>setShowCalendar(false)} onAdd={handleAdd} isAdmin={isAdmin} onToggleLike={handleToggleLike} likedIds={likedIds}/>}
+      {showSettings && <SettingsPanel settings={settings} onSave={handleSaveSettings} onClose={()=>setShowSettings(false)}/>}
       {showLogin && <LoginModal onSuccess={handleLoginSuccess} onClose={()=>setShowLogin(false)}/>}
     </div>
   );
