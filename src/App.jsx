@@ -216,22 +216,28 @@ function AddForm({ childKey, theme, onAdd, onClose, initialDate }) {
     if (!files.length) return;
     files.forEach(file => {
       const reader = new FileReader();
+      const previewId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       reader.onload = (ev) => {
-        setPreviews(prev => [...prev, { id: Math.random().toString(36).slice(2), url: ev.target.result }]);
+        setPreviews(prev => [...prev, { id: previewId, url: ev.target.result }]);
       };
       reader.readAsDataURL(file);
     });
+    // Allow selecting the same files again later if needed
+    e.target.value = "";
   };
   const removePreview = (id) => setPreviews(prev => prev.filter(p => p.id !== id));
 
   const handleSubmit = () => {
     if (!title.trim()) return;
     const dateIso = new Date(workDate + "T12:00:00").toISOString();
+    const baseTime = Date.now();
+    const uid = () => `${baseTime}-${Math.random().toString(36).slice(2, 8)}`;
+
     if (previews.length <= 1) {
-      onAdd({ id: Date.now().toString(), title: title.trim(), child: childKey, tag, description: description.trim(), imageUrl: previews[0]?.url || "", date: dateIso });
+      onAdd({ id: uid(), title: title.trim(), child: childKey, tag, description: description.trim(), imageUrl: previews[0]?.url || "", date: dateIso });
     } else {
       previews.forEach((p, i) => {
-        onAdd({ id: `${Date.now()}-${i}`, title: `${title.trim()} ${i+1}`, child: childKey, tag, description: description.trim(), imageUrl: p.url, date: dateIso });
+        onAdd({ id: uid(), title: `${title.trim()} ${i+1}`, child: childKey, tag, description: description.trim(), imageUrl: p.url, date: dateIso });
       });
     }
     onClose();
@@ -594,9 +600,9 @@ export default function App() {
     })();
   },[]);
 
-  const handleAdd = async (work) => {
+  const handleAdd = (work) => {
     setWorks(prev => [work, ...prev]);
-    try { await saveWork(work); } catch (e) { console.error("Failed to save work:", e); }
+    saveWork(work).catch(e => console.error("Failed to save work:", e));
   };
   const handleDelete = async (id) => {
     setWorks(prev => prev.filter(w => w.id !== id));
