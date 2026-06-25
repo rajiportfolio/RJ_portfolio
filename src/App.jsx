@@ -171,12 +171,56 @@ function WorkCard({ work, theme, onClick, onToggleLike, isLiked }) {
 }
 
 // ── Work Detail Modal ──────────────────────────────────────────
-function Modal({ work, theme, onClose, onDelete, isAdmin, onToggleLike, isLiked }) {
+function Modal({ work, theme, onClose, onDelete, isAdmin, onToggleLike, isLiked, onPrev, onNext }) {
+  const touchStartX = useRef(null);
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowLeft" && onPrev) onPrev();
+      else if (e.key === "ArrowRight" && onNext) onNext();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose, onPrev, onNext]);
+
   if (!work) return null;
   const likeCount = work.likeCount || 0;
+
+  const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const delta = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(delta) > 50) {
+      if (delta > 0 && onPrev) onPrev();
+      else if (delta < 0 && onNext) onNext();
+    }
+    touchStartX.current = null;
+  };
+
+  const navBtnStyle = {
+    position:"absolute", top:"50%", transform:"translateY(-50%)",
+    width:40, height:40, borderRadius:"50%", border:"none", cursor:"pointer",
+    background:"rgba(255,255,255,0.9)", display:"flex", alignItems:"center", justifyContent:"center",
+    fontSize:18, color:"#333", boxShadow:"0 2px 10px rgba(0,0,0,0.25)", zIndex:1001,
+  };
+
   return (
     <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:20, backdropFilter:"blur(4px)" }}>
-      <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, maxWidth:540, width:"100%", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 32px 80px rgba(0,0,0,0.25)" }}>
+      {/* Prev arrow — outside the card, fixed to viewport */}
+      {onPrev && (
+        <button onClick={(e)=>{e.stopPropagation(); onPrev();}} style={{ ...navBtnStyle, left: "calc(50% - 300px)" }}>‹</button>
+      )}
+      {onNext && (
+        <button onClick={(e)=>{e.stopPropagation(); onNext();}} style={{ ...navBtnStyle, right: "calc(50% - 300px)" }}>›</button>
+      )}
+
+      <div
+        onClick={e=>e.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        style={{ background:"#fff", borderRadius:16, maxWidth:540, width:"100%", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 32px 80px rgba(0,0,0,0.25)" }}
+      >
         <div style={{ position:"relative" }}>
           {work.imageUrl
             ? <img src={work.imageUrl} alt={work.title} style={{ width:"100%", borderRadius:"16px 16px 0 0", maxHeight:340, objectFit:"cover", display:"block" }}/>
@@ -377,7 +421,6 @@ function CalendarView({ works, themes, onClose, onAdd, isAdmin, onToggleLike, li
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [addChild, setAddChild] = useState(null);
-  const selectedWork = works.find(w => w.id === selectedId) || null;
 
   const worksByDate = {};
   works.forEach(w => {
@@ -394,6 +437,10 @@ function CalendarView({ works, themes, onClose, onAdd, isAdmin, onToggleLike, li
 
   const selectedKey = selectedDate ? `${year}-${String(month+1).padStart(2,"0")}-${String(selectedDate).padStart(2,"0")}` : null;
   const selectedWorks = selectedKey ? (worksByDate[selectedKey] || []) : [];
+  const selectedWorkIndex = selectedWorks.findIndex(w => w.id === selectedId);
+  const selectedWork = selectedWorkIndex >= 0 ? selectedWorks[selectedWorkIndex] : null;
+  const goPrev = selectedWorkIndex > 0 ? () => setSelectedId(selectedWorks[selectedWorkIndex - 1].id) : null;
+  const goNext = selectedWorkIndex >= 0 && selectedWorkIndex < selectedWorks.length - 1 ? () => setSelectedId(selectedWorks[selectedWorkIndex + 1].id) : null;
   const getTheme = w => w.child==="raina" ? themes.raina : themes.jaina;
 
   const cells = [];
@@ -472,7 +519,7 @@ function CalendarView({ works, themes, onClose, onAdd, isAdmin, onToggleLike, li
       </div>
 
       {addChild && <AddForm childKey={addChild} theme={addChild==="raina"?themes.raina:themes.jaina} initialDate={selectedKey} onAdd={w=>{onAdd(w);setAddChild(null);}} onClose={()=>setAddChild(null)}/>}
-      {selectedWork && <Modal work={selectedWork} theme={getTheme(selectedWork)} onClose={()=>setSelectedId(null)} onDelete={()=>{}} isAdmin={isAdmin} onToggleLike={onToggleLike} isLiked={likedIds.has(selectedWork.id)}/>}
+      {selectedWork && <Modal work={selectedWork} theme={getTheme(selectedWork)} onClose={()=>setSelectedId(null)} onDelete={()=>{}} isAdmin={isAdmin} onToggleLike={onToggleLike} isLiked={likedIds.has(selectedWork.id)} onPrev={goPrev} onNext={goNext}/>}
     </div>
   );
 }
@@ -541,13 +588,17 @@ function SettingsPanel({ settings, onSave, onClose }) {
 // ── Board (grid only) ─────────────────────────────────────────
 function Board({ childKey, theme, works, filter, search, onDelete, isAdmin, onToggleLike, likedIds }) {
   const [selectedId, setSelectedId] = useState(null);
-  const selectedWork = works.find(w => w.id === selectedId) || null;
 
   const filtered = works.filter(w => {
     const matchTag = filter==="All"||w.tag===filter;
     const matchSearch = !search||w.title.toLowerCase().includes(search.toLowerCase())||(w.description||"").toLowerCase().includes(search.toLowerCase());
     return matchTag && matchSearch;
   });
+
+  const selectedIndex = filtered.findIndex(w => w.id === selectedId);
+  const selectedWork = selectedIndex >= 0 ? filtered[selectedIndex] : null;
+  const goPrev = selectedIndex > 0 ? () => setSelectedId(filtered[selectedIndex - 1].id) : null;
+  const goNext = selectedIndex >= 0 && selectedIndex < filtered.length - 1 ? () => setSelectedId(filtered[selectedIndex + 1].id) : null;
 
   return (
     <div>
@@ -559,7 +610,7 @@ function Board({ childKey, theme, works, filter, search, onDelete, isAdmin, onTo
             {filtered.map(work=><WorkCard key={work.id} work={work} theme={theme} onClick={w=>setSelectedId(w.id)} onToggleLike={onToggleLike} isLiked={likedIds.has(work.id)}/>)}
           </div>
       }
-      {selectedWork && <Modal work={selectedWork} theme={theme} onClose={()=>setSelectedId(null)} onDelete={onDelete} isAdmin={isAdmin} onToggleLike={onToggleLike} isLiked={likedIds.has(selectedWork.id)}/>}
+      {selectedWork && <Modal work={selectedWork} theme={theme} onClose={()=>setSelectedId(null)} onDelete={onDelete} isAdmin={isAdmin} onToggleLike={onToggleLike} isLiked={likedIds.has(selectedWork.id)} onPrev={goPrev} onNext={goNext}/>}
     </div>
   );
 }
