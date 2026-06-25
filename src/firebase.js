@@ -30,6 +30,7 @@ export async function fetchWorks() {
 
 export async function saveWork(work) {
   await setDoc(doc(db, "works", work.id), work);
+  return work;
 }
 
 export async function deleteWork(id) {

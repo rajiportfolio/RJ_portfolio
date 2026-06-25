@@ -19,6 +19,34 @@ function saveLikedWorkIds(set) {
   try { localStorage.setItem(LIKED_KEY, JSON.stringify([...set])); } catch {}
 }
 
+// Resize + compress an image so it stays well under Firestore's 1MB document limit.
+// Scales down to maxDimension on the longest side and re-encodes as JPEG.
+function compressImage(dataUrl, maxDimension = 1280, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxDimension || height > maxDimension) {
+        if (width > height) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
+        } else {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
 const DEFAULT_SETTINGS = {
   bgColor: "#ffffff",
   raina: { emoji: "", color: "#e8547a", gradient2: "#f472b6" },
@@ -208,17 +236,27 @@ function AddForm({ childKey, theme, onAdd, onClose, initialDate }) {
   const [tag, setTag] = useState("Photo");
   const [description, setDescription] = useState("");
   const [previews, setPreviews] = useState([]); // [{id, url}]
+  const [compressing, setCompressing] = useState(0); // count of files still processing
   const [workDate, setWorkDate] = useState(initialDate || todayStr);
   const fileRef = useRef();
 
   const handleFile = (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
+    setCompressing(c => c + files.length);
     files.forEach(file => {
       const reader = new FileReader();
       const previewId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      reader.onload = (ev) => {
-        setPreviews(prev => [...prev, { id: previewId, url: ev.target.result }]);
+      reader.onload = async (ev) => {
+        try {
+          const compressed = await compressImage(ev.target.result);
+          setPreviews(prev => [...prev, { id: previewId, url: compressed }]);
+        } catch {
+          // Fallback to original if compression fails for some reason
+          setPreviews(prev => [...prev, { id: previewId, url: ev.target.result }]);
+        } finally {
+          setCompressing(c => c - 1);
+        }
       };
       reader.readAsDataURL(file);
     });
@@ -290,6 +328,7 @@ function AddForm({ childKey, theme, onAdd, onClose, initialDate }) {
             <div>
               <label style={{ fontSize:11, fontWeight:600, color:"#999", letterSpacing:0.8, textTransform:"uppercase", display:"block", marginBottom:6 }}>
                 Photos {previews.length > 0 && <span style={{ color: theme.color, fontWeight:400, textTransform:"none" }}>— {previews.length} selected</span>}
+                {compressing > 0 && <span style={{ color:"#bbb", fontWeight:400, textTransform:"none" }}> · compressing {compressing}…</span>}
               </label>
               <div onClick={()=>fileRef.current.click()} style={{ border:"1.5px dashed #e0e0e0", borderRadius:10, padding: previews.length ? "12px" : "20px", textAlign:"center", cursor:"pointer", background:"#fafafa", transition:"border 0.15s" }}
                 onMouseEnter={e=>e.currentTarget.style.borderColor=theme.color} onMouseLeave={e=>e.currentTarget.style.borderColor="#e0e0e0"}>
@@ -303,7 +342,9 @@ function AddForm({ childKey, theme, onAdd, onClose, initialDate }) {
                       ))}
                       <div onClick={e=>{e.stopPropagation();fileRef.current.click();}} style={{ width:64, height:64, borderRadius:6, border:"1.5px dashed #ccc", display:"flex", alignItems:"center", justifyContent:"center", color:"#bbb", fontSize:20, cursor:"pointer" }}>+</div>
                     </div>
-                  : <div style={{ color:"#ccc", fontSize:13 }}>Click to upload — select multiple photos at once</div>
+                  : compressing > 0
+                    ? <div style={{ color:"#bbb", fontSize:13 }}>Compressing…</div>
+                    : <div style={{ color:"#ccc", fontSize:13 }}>Click to upload — select multiple photos at once</div>
                 }
               </div>
               <input ref={fileRef} type="file" accept="image/*" multiple style={{ display:"none" }} onChange={handleFile}/>
@@ -318,8 +359,8 @@ function AddForm({ childKey, theme, onAdd, onClose, initialDate }) {
 
           <div style={{ display:"flex", gap:8, marginTop:22 }}>
             <button onClick={onClose} style={{ flex:1, padding:"11px", borderRadius:8, border:"1px solid #e8e8e8", background:"#fff", color:"#aaa", fontWeight:500, cursor:"pointer", fontSize:13, fontFamily:"inherit" }}>Cancel</button>
-            <button onClick={handleSubmit} disabled={!title.trim()} style={{ flex:2, padding:"11px", borderRadius:8, border:"none", background:!title.trim()?"#f0f0f0":theme.gradient, color:!title.trim()?"#bbb":"#fff", fontWeight:600, cursor:!title.trim()?"not-allowed":"pointer", fontSize:13, fontFamily:"inherit", letterSpacing:0.2 }}>
-              {previews.length > 1 ? `Save ${previews.length} works` : "Save work"}
+            <button onClick={handleSubmit} disabled={!title.trim() || compressing > 0} style={{ flex:2, padding:"11px", borderRadius:8, border:"none", background:(!title.trim()||compressing>0)?"#f0f0f0":theme.gradient, color:(!title.trim()||compressing>0)?"#bbb":"#fff", fontWeight:600, cursor:(!title.trim()||compressing>0)?"not-allowed":"pointer", fontSize:13, fontFamily:"inherit", letterSpacing:0.2 }}>
+              {compressing > 0 ? "Compressing…" : previews.length > 1 ? `Save ${previews.length} works` : "Save work"}
             </button>
           </div>
         </div>
@@ -601,7 +642,7 @@ export default function App() {
   },[]);
 
   const handleAdd = (work) => {
-    setWorks(prev => [work, ...prev]);
+    setWorks(prev => [work, ...prev]); // optimistic: show immediately
     saveWork(work).catch(e => console.error("Failed to save work:", e));
   };
   const handleDelete = async (id) => {
