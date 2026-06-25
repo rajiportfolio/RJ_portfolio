@@ -199,33 +199,32 @@ function Modal({ work, theme, onClose, onDelete, isAdmin, onToggleLike, isLiked,
   };
 
   const navBtnStyle = {
-    position:"absolute", top:"50%", transform:"translateY(-50%)",
-    width:40, height:40, borderRadius:"50%", border:"none", cursor:"pointer",
-    background:"rgba(255,255,255,0.9)", display:"flex", alignItems:"center", justifyContent:"center",
-    fontSize:18, color:"#333", boxShadow:"0 2px 10px rgba(0,0,0,0.25)", zIndex:1001,
+    position:"absolute", top:12,
+    width:30, height:30, borderRadius:"50%", border:"none", cursor:"pointer",
+    background:"rgba(0,0,0,0.45)", display:"flex", alignItems:"center", justifyContent:"center",
+    fontSize:22, fontWeight:900, color:"#fff", lineHeight:1,
+    boxShadow:"0 2px 8px rgba(0,0,0,0.3)", zIndex:1001,
   };
 
   return (
     <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:20, backdropFilter:"blur(4px)" }}>
-      {/* Prev arrow — outside the card, fixed to viewport */}
-      {onPrev && (
-        <button onClick={(e)=>{e.stopPropagation(); onPrev();}} style={{ ...navBtnStyle, left: "calc(50% - 300px)" }}>‹</button>
-      )}
-      {onNext && (
-        <button onClick={(e)=>{e.stopPropagation(); onNext();}} style={{ ...navBtnStyle, right: "calc(50% - 300px)" }}>›</button>
-      )}
-
       <div
         onClick={e=>e.stopPropagation()}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        style={{ background:"#fff", borderRadius:16, maxWidth:540, width:"100%", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 32px 80px rgba(0,0,0,0.25)" }}
+        style={{ background:"#fff", borderRadius:16, maxWidth:720, width:"100%", maxHeight:"92vh", overflowY:"auto", boxShadow:"0 32px 80px rgba(0,0,0,0.25)" }}
       >
         <div style={{ position:"relative" }}>
           {work.imageUrl
-            ? <img src={work.imageUrl} alt={work.title} style={{ width:"100%", borderRadius:"16px 16px 0 0", maxHeight:340, objectFit:"cover", display:"block" }}/>
-            : <div style={{ height:120, background:`linear-gradient(135deg, ${theme.light}, #f9f9f9)`, borderRadius:"16px 16px 0 0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>✏️</div>
+            ? <img src={work.imageUrl} alt={work.title} style={{ width:"100%", borderRadius:"16px 16px 0 0", maxHeight:520, objectFit:"cover", display:"block" }}/>
+            : <div style={{ height:160, background:`linear-gradient(135deg, ${theme.light}, #f9f9f9)`, borderRadius:"16px 16px 0 0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>✏️</div>
           }
+          {onPrev && (
+            <button onClick={(e)=>{e.stopPropagation(); onPrev();}} style={{ ...navBtnStyle, left:10 }}>‹</button>
+          )}
+          {onNext && (
+            <button onClick={(e)=>{e.stopPropagation(); onNext();}} style={{ ...navBtnStyle, right:10 }}>›</button>
+          )}
           <button
             onClick={(e) => { e.stopPropagation(); onToggleLike(work); }}
             style={{
@@ -736,15 +735,15 @@ export default function App() {
   const activeTheme = activeChild==="raina" ? rainaTheme : jainaTheme;
 
   return (
-    <div style={{ minHeight:"100vh", background:settings.bgColor, fontFamily:"'Inter','DM Sans','Apple SD Gothic Neo',sans-serif", display:"flex", flexDirection:"column" }}>
+    <div style={{ minHeight:"100vh", background:settings.bgColor, fontFamily:"'Pretendard','Inter',sans-serif", display:"flex", flexDirection:"column" }}>
 
       {/* Top bar */}
       <header style={{ borderBottom:"1px solid #f0f0f0", padding:"0 32px", background:settings.bgColor, position:"sticky", top:0, zIndex:100 }}>
         <div style={{ maxWidth:1200, margin:"0 auto", display:"flex", alignItems:"center", height:56, gap:16 }}>
           <div style={{ fontWeight:800, fontSize:16, color:"#111", letterSpacing:"-0.5px" }}>
-            <span style={{ background:rainaTheme.gradient, WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>Raina</span>
+            <span>Raina</span>
             <span style={{ color:"#ddd", margin:"0 6px", fontWeight:300 }}>&</span>
-            <span style={{ background:jainaTheme.gradient, WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>Jaina</span>
+            <span>Jaina</span>
           </div>
           {visitorCount !== null && (
             <span style={{ fontSize:11, color:"#ccc", fontWeight:500, display:"flex", alignItems:"center", gap:4 }}>
@@ -793,9 +792,9 @@ export default function App() {
                   onMouseEnter={e=>{ if(!isActive) e.currentTarget.style.background="#fafafa"; }}
                   onMouseLeave={e=>{ if(!isActive) e.currentTarget.style.background="transparent"; }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                    <div style={{ width:34, height:34, borderRadius:8, background: isActive ? theme.gradient : "#f0f0f0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color: isActive ? "#fff" : "#bbb", transition:"all 0.2s" }}>{theme.name.slice(0,1)}</div>
+                    <div style={{ width:34, height:34, borderRadius:8, background:"#fff", border:"1.5px solid #111", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color: theme.color, transition:"all 0.2s" }}>{theme.name.slice(0,1)}</div>
                     <div>
-                      <div style={{ fontWeight:700, fontSize:14, color: isActive ? "#111" : "#bbb", letterSpacing:"-0.2px" }}>{theme.name}</div>
+                      <div style={{ fontWeight:700, fontSize:14, color:"#111", letterSpacing:"-0.2px" }}>{theme.name}</div>
                       <div style={{ fontSize:11, color:"#ccc" }}>{ws.length} work{ws.length!==1?"s":""}</div>
                     </div>
                     {isActive && <div style={{ marginLeft:"auto", width:5, height:5, borderRadius:"50%", background:theme.color }}/>}
@@ -837,7 +836,7 @@ export default function App() {
                               padding:"6px 10px", borderRadius:6, fontSize:12, textAlign:"left",
                               border:"none", cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s",
                               background: filters[key]===t ? theme.light : "transparent",
-                              color: filters[key]===t ? theme.color : "#aaa",
+                              color: "#111",
                               fontWeight: filters[key]===t ? 600 : 400,
                             }}>
                               {filters[key]===t ? "▸ " : "  "}{t}
