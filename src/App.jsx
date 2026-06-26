@@ -746,8 +746,8 @@ export default function App() {
             <span style={{ color: jainaTheme.color }}>Jaina</span>
           </div>
           {visitorCount !== null && (
-            <span style={{ fontSize:11, color:"#ccc", fontWeight:500, display:"flex", alignItems:"center", gap:4 }}>
-              <span style={{ fontSize:10 }}>👁</span>{visitorCount.toLocaleString()}
+            <span style={{ fontSize:11, color:"#ccc", fontWeight:500, letterSpacing:0.5 }}>
+              VISITS · {visitorCount.toLocaleString()}
             </span>
           )}
           <div style={{ flex:1 }}/>
